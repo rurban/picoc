@@ -909,12 +909,12 @@ void ExpressionInfixOperator(struct ParseState *Parser,
             ArrayIndex, true)),
             BottomValue->IsLValue, BottomValue->LValueFrom);
             break;
-        case TypePointer: Result = VariableAllocValueFromExistingData(Parser,
-            BottomValue->Typ->FromType,
-            (union AnyValue*)((char*)BottomValue->Val->Pointer +
-                TypeSize(BottomValue->Typ->FromType,
-            0, true) * ArrayIndex),
-            BottomValue->IsLValue, BottomValue->LValueFrom);
+        case TypePointer: 
+			Result = VariableAllocValueFromExistingData(Parser,
+						BottomValue->Typ->FromType,
+						(union AnyValue*)((char*)BottomValue->Val->Pointer +
+		/* wk_modify: for multi-dim array */ BottomValue->Typ->FromType->Sizeof * ArrayIndex),
+						BottomValue->IsLValue, BottomValue->LValueFrom);
             break;
         default:
             ProgramFail(Parser, "this %t is not an array", BottomValue->Typ);
