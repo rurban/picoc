@@ -488,6 +488,7 @@ struct ValueType *TypeParseBack(struct ParseState *Parser,
 {
     enum LexToken Token;
     struct ParseState Before;
+	enum BaseType Base = TypeArray;
 
     ParserCopy(&Before, Parser);
     Token = LexGetToken(Parser, NULL, true);
@@ -496,8 +497,15 @@ struct ValueType *TypeParseBack(struct ParseState *Parser,
         if (LexGetToken(Parser, NULL, false) == TokenRightSquareBracket) {
             /* an unsized array */
             LexGetToken(Parser, NULL, true);
+
+			/* wk_modify: change unsized-array to pointer */
+			if (Parser->CurrentConstruct == CLangFunctionParamDef) {
+				printf("In Param definition\n");
+				Base = TypePointer;
+			}
+
             return TypeGetMatching(Parser->pc, Parser,
-                TypeParseBack(Parser, FromType), TypeArray, 0,
+                TypeParseBack(Parser, FromType), Base, 0,
                     Parser->pc->StrEmpty, true);
         } else {
             /* get a numeric array size */

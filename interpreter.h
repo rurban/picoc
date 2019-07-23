@@ -194,6 +194,13 @@ enum RunMode {
     RunModeGoto                 /* searching for a goto label */
 };
 
+enum CLangConstruct {
+	CLangGlobal = 0,
+	CLangFunctionDef,
+	CLangFunctionParamDef,
+	CLangFunctionBodyDef
+};
+
 /* parser state - has all this detail so we can parse nested files */
 struct ParseState {
     Picoc *pc;                  /* the picoc instance this parser is a part of */
@@ -211,6 +218,7 @@ struct ParseState {
     char DebugMode;             /* debugging mode */
     int ScopeID;   /* for keeping track of local variables (free them after t
                       hey go out of scope) */
+	enum CLangConstruct CurrentConstruct;	/* wk_added: C language construct being parsing */
 };
 
 /* values */

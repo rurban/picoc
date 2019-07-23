@@ -90,6 +90,9 @@ struct Value *ParseFunctionDefinition(struct ParseState *Parser,
     if (pc->TopStackFrame != NULL)
         ProgramFail(Parser, "nested function definitions are not allowed");
 
+	/* wk_added */
+	Parser->CurrentConstruct = CLangFunctionDef;
+
     LexGetToken(Parser, NULL, true);  /* open bracket */
     ParserCopy(&ParamParser, Parser);
     ParamCount = ParseCountParams(Parser);
@@ -110,6 +113,8 @@ struct Value *ParseFunctionDefinition(struct ParseState *Parser,
         (char**)((char*)FuncValue->Val->FuncDef.ParamType +
             sizeof(struct ValueType*)*ParamCount);
 
+	/* wk_added */
+	ParamParser.CurrentConstruct = CLangFunctionParamDef;
     for (ParamCount = 0; ParamCount < FuncValue->Val->FuncDef.NumParams; ParamCount++) {
         /* harvest the parameters into the function definition */
         if (ParamCount == FuncValue->Val->FuncDef.NumParams-1 &&
@@ -158,6 +163,9 @@ struct Value *ParseFunctionDefinition(struct ParseState *Parser,
         LexGetToken(Parser, NULL, true);  /* it's a prototype, absorb
                                             the trailing semicolon */
     else {
+		/* wk_added */
+		Parser->CurrentConstruct = CLangFunctionBodyDef;
+
         /* it's a full function definition with a body */
         if (Token != TokenLeftBrace)
             ProgramFail(Parser, "bad function definition");
@@ -177,11 +185,17 @@ struct Value *ParseFunctionDefinition(struct ParseState *Parser,
             } else
                 ProgramFail(Parser, "'%s' is already defined", Identifier);
         }
+
+		/* wk_added */
+		Parser->CurrentConstruct = CLangFunctionDef;
     }
 
     if (!TableSet(pc, &pc->GlobalTable, Identifier, FuncValue,
                 (char*)Parser->FileName, Parser->Line, Parser->CharacterPos))
         ProgramFail(Parser, "'%s' is already defined", Identifier);
+
+	/* wk_added */
+	Parser->CurrentConstruct = CLangGlobal;
 
     return FuncValue;
 }
