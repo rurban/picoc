@@ -315,6 +315,7 @@ struct Value {
 	const char *Name;
 	struct Value *Ref;
 	int RefOffset;
+	int RefBridge;
 };
 
 /* hash table data structure */

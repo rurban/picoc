@@ -333,7 +333,7 @@ long ExpressionAssignInt(struct ParseState *Parser, struct Value *DestValue,
 
 	if (DestValue->Ref) {
 		if (0 == strcmp(DestValue->Ref->Name, "target")) {
-			printf("Semantic tracing:AssignInt: %s[%d]\n", DestValue->Ref->Name, DestValue->RefOffset);
+			printf("**semantic tracing**\n  AssignInt: Assign %s[%d] with value %d\n", DestValue->Ref->Name, DestValue->RefOffset, FromInt);
 		}
 	}
 
@@ -423,8 +423,11 @@ void ExpressionStackPushLValue(struct ParseState *Parser,
     struct Value *ValueLoc = VariableAllocValueShared(Parser, PushValue);
     ValueLoc->Val = (void *)((char *)ValueLoc->Val + Offset);
 
-	/* wk_debug
-	ValueLoc->Ref = PushValue->Ref ? PushValue->Ref : PushValue;
+	/* wk_debug: a 'copy' of L-Value shares the same semantic properties
+	 * Used in RHS
+	 * */
+	/*
+	ValueLoc->Ref = PushValue->Ref;
 	ValueLoc->RefOffset = PushValue->RefOffset;
 	*/
 
@@ -548,11 +551,6 @@ void ExpressionAssign(struct ParseState *Parser, struct Value *DestValue,
     struct Value *SourceValue, int Force, const char *FuncName, int ParamNo,
     int AllowPointerCoercion)
 {
-	struct Value *Left = DestValue;
-	if (Left->LValueFrom) {
-		Left = Left->LValueFrom;
-	}
-
     if (!DestValue->IsLValue && !Force)
         AssignFail(Parser, "not an lvalue", NULL, NULL, 0, 0, FuncName, ParamNo);
 
@@ -560,22 +558,6 @@ void ExpressionAssign(struct ParseState *Parser, struct Value *DestValue,
             !IS_NUMERIC_COERCIBLE_PLUS_POINTERS(SourceValue, AllowPointerCoercion))
         AssignFail(Parser, "%t from %t", DestValue->Typ, SourceValue->Typ, 0, 0,
             FuncName, ParamNo);
-
-	/* wk_debug */
-	/*
-	printf("DestValue Address: %p\n", Left);
-	printf("DestValue->Name: %s\n", Left->Name);
-	printf("DestValue->Ref: %p\n", Left->Ref);
-	printf("DestValue->RefOffset: %d\n", Left->RefOffset);
-	if (Left->Ref) {
-		printf("Referrence Name: %s\n", Left->Ref->Name);
-	}
-	if (Left->Ref) {
-		if (0 == strcmp(Left->Ref->Name, "target")) {
-			printf("Semantic tracing:Assign: %s[%d]\n", Left->Ref->Name, Left->RefOffset);
-		}
-	}
-	*/
 
     switch (DestValue->Typ->Base) {
     case TypeInt:
@@ -681,6 +663,13 @@ void ExpressionAssign(struct ParseState *Parser, struct Value *DestValue,
         AssignFail(Parser, "%t", DestValue->Typ, NULL, 0, 0, FuncName, ParamNo);
         break;
     }
+
+	if (SourceValue->Ref) {
+		if (0 == strcmp(SourceValue->Ref->Name, "target")) {
+			printf("**semantic tracing**\n  ReadInt: Read out %s[%d]=%d\n",
+					SourceValue->Ref->Name, SourceValue->RefOffset, ExpressionCoerceInteger(SourceValue));
+		}
+	}
 }
 
 /* evaluate the first half of a ternary operator x ? y : z */
@@ -1085,6 +1074,30 @@ void ExpressionInfixOperator(struct ParseState *Parser,
         /* integer operation */
         long TopInt = ExpressionCoerceInteger(TopValue);
         long BottomInt = ExpressionCoerceInteger(BottomValue);
+
+		switch (Op) {
+			case TokenAssign:
+			case TokenAddAssign:
+			case TokenSubtractAssign:
+			case TokenMultiplyAssign:
+			case TokenDivideAssign:
+			case TokenModulusAssign:
+			case TokenShiftLeftAssign:
+			case TokenShiftRightAssign:
+			case TokenArithmeticAndAssign:
+			case TokenArithmeticOrAssign:
+			case TokenArithmeticExorAssign:
+				if (TopValue->Ref) {
+					if (0 == strcmp(TopValue->Ref->Name, "target")) {
+						printf("**semantic tracing**\n  ReadInt: Read out %s[%d]=%d\n",
+								TopValue->Ref->Name, TopValue->RefOffset, TopInt);
+					}
+				}
+				break;
+			default:
+				break;
+		}
+
         switch (Op) {
         case TokenAssign:
             ResultInt = ExpressionAssignInt(Parser, BottomValue, TopInt, false);

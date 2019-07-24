@@ -107,6 +107,11 @@ struct Value *VariableAllocValueAndData(Picoc *pc, struct ParseState *Parser,
         NewValue->ScopeID = Parser->ScopeID;
 
     NewValue->OutOfScope = false;
+	/* wk_add */
+	NewValue->Name = NULL;
+	NewValue->Ref = NULL;
+	NewValue->RefOffset = 0;
+	NewValue->RefBridge = 0;
 
     return NewValue;
 }
@@ -159,6 +164,11 @@ struct Value *VariableAllocValueFromExistingData(struct ParseState *Parser,
     NewValue->ValOnStack = false;
     NewValue->IsLValue = IsLValue;
     NewValue->LValueFrom = LValueFrom;
+	/* wk_add */
+	NewValue->Name = NULL;
+	NewValue->Ref = NULL;
+	NewValue->RefOffset = 0;
+	NewValue->RefBridge = 0;
 
     return NewValue;
 }
@@ -311,6 +321,7 @@ struct Value *VariableDefine(Picoc *pc, struct ParseState *Parser, char *Ident,
 	AssignValue->Name = Ident;
 	AssignValue->Ref = AssignValue; /* ref to itself */
 	AssignValue->RefOffset = 0;
+	AssignValue->RefBridge = 0;
 
     if (!TableSet(pc, currentTable, Ident, AssignValue, Parser ?
             ((char*)Parser->FileName) : NULL, Parser ? Parser->Line : 0,
