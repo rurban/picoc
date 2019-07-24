@@ -309,7 +309,7 @@ struct Value *VariableDefine(Picoc *pc, struct ParseState *Parser, char *Ident,
 
 	/* wk_add */
 	AssignValue->Name = Ident;
-	AssignValue->Ref = NULL;
+	AssignValue->Ref = AssignValue; /* ref to itself */
 	AssignValue->RefOffset = 0;
 
     if (!TableSet(pc, currentTable, Ident, AssignValue, Parser ?

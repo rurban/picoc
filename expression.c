@@ -331,6 +331,12 @@ long ExpressionAssignInt(struct ParseState *Parser, struct Value *DestValue,
     else
         Result = FromInt;
 
+	if (DestValue->Ref) {
+		if (0 == strcmp(DestValue->Ref->Name, "target")) {
+			printf("Semantic tracing:AssignInt: %s[%d]\n", DestValue->Ref->Name, DestValue->RefOffset);
+		}
+	}
+
     switch (DestValue->Typ->Base) {
     case TypeInt:
         DestValue->Val->Integer = (int)FromInt;
@@ -542,6 +548,11 @@ void ExpressionAssign(struct ParseState *Parser, struct Value *DestValue,
     struct Value *SourceValue, int Force, const char *FuncName, int ParamNo,
     int AllowPointerCoercion)
 {
+	struct Value *Left = DestValue;
+	if (Left->LValueFrom) {
+		Left = Left->LValueFrom;
+	}
+
     if (!DestValue->IsLValue && !Force)
         AssignFail(Parser, "not an lvalue", NULL, NULL, 0, 0, FuncName, ParamNo);
 
@@ -551,10 +562,7 @@ void ExpressionAssign(struct ParseState *Parser, struct Value *DestValue,
             FuncName, ParamNo);
 
 	/* wk_debug */
-	struct Value *Left = DestValue;
-	if (Left->LValueFrom) {
-		Left = Left->LValueFrom;
-	}
+	/*
 	printf("DestValue Address: %p\n", Left);
 	printf("DestValue->Name: %s\n", Left->Name);
 	printf("DestValue->Ref: %p\n", Left->Ref);
@@ -562,6 +570,12 @@ void ExpressionAssign(struct ParseState *Parser, struct Value *DestValue,
 	if (Left->Ref) {
 		printf("Referrence Name: %s\n", Left->Ref->Name);
 	}
+	if (Left->Ref) {
+		if (0 == strcmp(Left->Ref->Name, "target")) {
+			printf("Semantic tracing:Assign: %s[%d]\n", Left->Ref->Name, Left->RefOffset);
+		}
+	}
+	*/
 
     switch (DestValue->Typ->Base) {
     case TypeInt:
@@ -928,6 +942,16 @@ void ExpressionInfixOperator(struct ParseState *Parser,
     struct Value *StackValue;
     void *Pointer;
 	int Offset = 0;
+	/* wk_add */
+	struct Value *Left = BottomValue;
+	struct Value *Right = TopValue;
+
+	if (Left->LValueFrom) {
+		Left = Left->LValueFrom;
+	}
+	if (Right->LValueFrom) {
+		Right = Right->LValueFrom;
+	}
 
 #ifdef DEBUG_EXPRESSIONS
     printf("ExpressionInfixOperator()\n");
@@ -949,12 +973,16 @@ void ExpressionInfixOperator(struct ParseState *Parser,
         /* make the array element result */
         switch (BottomValue->Typ->Base) {
         case TypeArray:
+			/* wk_modify: for multi-dim unsized array */
+			Offset = BottomValue->Typ->FromType->Sizeof * ArrayIndex;
+
             Result = VariableAllocValueFromExistingData(Parser,
-            BottomValue->Typ->FromType,
-            (union AnyValue*)(&BottomValue->Val->ArrayMem[0] +
-                TypeSize(BottomValue->Typ,
-            ArrayIndex, true)),
-            BottomValue->IsLValue, BottomValue->LValueFrom);
+						BottomValue->Typ->FromType,
+						(union AnyValue*)(&BottomValue->Val->ArrayMem[0] + Offset),
+						BottomValue->IsLValue, BottomValue->LValueFrom);
+
+			Result->Ref = Left->Ref;
+			Result->RefOffset = Left->RefOffset + ArrayIndex;
             break;
         case TypePointer: 
 			/* wk_modify: for multi-dim unsized array */
@@ -965,8 +993,8 @@ void ExpressionInfixOperator(struct ParseState *Parser,
 						(union AnyValue*)((char*)BottomValue->Val->Pointer + Offset),
 						BottomValue->IsLValue, BottomValue->LValueFrom);
 
-			Result->Ref = BottomValue->Ref ? BottomValue->Ref : BottomValue;
-			Result->RefOffset = BottomValue->RefOffset + Offset;
+			Result->Ref = Left->Ref;
+			Result->RefOffset = Left->RefOffset + ArrayIndex;
             break;
         default:
             ProgramFail(Parser, "this %t is not an array", BottomValue->Typ);
