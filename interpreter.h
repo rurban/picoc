@@ -310,6 +310,11 @@ struct Value {
     char IsLValue;              /* is modifiable and is allocated somewhere we can usefully modify it */
     int ScopeID;                /* to know when it goes out of scope */
     char OutOfScope;
+
+	/* wk_add */
+	const char *Name;
+	struct Value *Ref;
+	int RefOffset;
 };
 
 /* hash table data structure */

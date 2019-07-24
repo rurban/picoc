@@ -307,6 +307,11 @@ struct Value *VariableDefine(Picoc *pc, struct ParseState *Parser, char *Ident,
     AssignValue->ScopeID = ScopeID;
     AssignValue->OutOfScope = false;
 
+	/* wk_add */
+	AssignValue->Name = Ident;
+	AssignValue->Ref = NULL;
+	AssignValue->RefOffset = 0;
+
     if (!TableSet(pc, currentTable, Ident, AssignValue, Parser ?
             ((char*)Parser->FileName) : NULL, Parser ? Parser->Line : 0,
             Parser ? Parser->CharacterPos : 0))

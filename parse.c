@@ -368,12 +368,11 @@ int ParseDeclaration(struct ParseState *Parser, enum LexToken Token)
 
         if (Identifier != pc->StrEmpty) {
             /* handle function definitions */
-            if (LexGetToken(Parser, NULL, false) == TokenOpenBracket)
-            {
+            if (LexGetToken(Parser, NULL, false) == TokenOpenBracket) {
                 ParseFunctionDefinition(Parser, Typ, Identifier);
                 return false;
             } else {
-                if (Typ == &pc->VoidType && Identifier != pc->StrEmpty)
+                if (Typ == &pc->VoidType)
                     ProgramFail(Parser, "can't define a void variable");
 
                 if (Parser->Mode == RunModeRun || Parser->Mode == RunModeGoto)

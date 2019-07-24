@@ -416,6 +416,12 @@ void ExpressionStackPushLValue(struct ParseState *Parser,
 {
     struct Value *ValueLoc = VariableAllocValueShared(Parser, PushValue);
     ValueLoc->Val = (void *)((char *)ValueLoc->Val + Offset);
+
+	/* wk_debug
+	ValueLoc->Ref = PushValue->Ref ? PushValue->Ref : PushValue;
+	ValueLoc->RefOffset = PushValue->RefOffset;
+	*/
+
     ExpressionStackPushValueNode(Parser, StackTop, ValueLoc);
 }
 
@@ -470,35 +476,62 @@ void ExpressionAssignToPointer(struct ParseState *Parser, struct Value *ToValue,
     int AllowPointerCoercion)
 {
     struct ValueType *PointedToType = ToValue->Typ->FromType;
+	/* wk_add */
+	struct Value *Left = ToValue;
+	struct Value *Right = FromValue;
+
+	if (Left->LValueFrom) {
+		Left = Left->LValueFrom;
+	}
+	if (Right->LValueFrom) {
+		Right = Right->LValueFrom;
+	}
 
     if (FromValue->Typ == ToValue->Typ ||
             FromValue->Typ == Parser->pc->VoidPtrType ||
             (ToValue->Typ == Parser->pc->VoidPtrType &&
-            FromValue->Typ->Base == TypePointer))
+            FromValue->Typ->Base == TypePointer)) {
         ToValue->Val->Pointer = FromValue->Val->Pointer; /* plain old pointer assignment */
-    else if (FromValue->Typ->Base == TypeArray &&
+
+		Left->Ref = Right->Ref;
+		Left->RefOffset = Right->RefOffset;
+	} else if (FromValue->Typ->Base == TypeArray &&
             (PointedToType == FromValue->Typ->FromType ||
             ToValue->Typ == Parser->pc->VoidPtrType)) {
         /* the form is: blah *x = array of blah */
         ToValue->Val->Pointer = (void *)&FromValue->Val->ArrayMem[0];
+
+		Left->Ref = Right->Ref ? Right->Ref : Right;
+		Left->RefOffset = Right->RefOffset;
     } else if (FromValue->Typ->Base == TypePointer &&
                 FromValue->Typ->FromType->Base == TypeArray &&
                (PointedToType == FromValue->Typ->FromType->FromType ||
                 ToValue->Typ == Parser->pc->VoidPtrType) ) {
         /* the form is: blah *x = pointer to array of blah */
-        ToValue->Val->Pointer = VariableDereferencePointer(FromValue, NULL,
-            NULL, NULL, NULL);
-    } else if (IS_NUMERIC_COERCIBLE(FromValue) &&
+        ToValue->Val->Pointer = FromValue->Val->Pointer;
+
+		Left->Ref = Right->Ref;
+		Left->RefOffset = Right->RefOffset;
+	} else if (IS_NUMERIC_COERCIBLE(FromValue) &&
             ExpressionCoerceInteger(FromValue) == 0) {
         /* null pointer assignment */
         ToValue->Val->Pointer = NULL;
+
+		Left->Ref = 0;
+		Left->RefOffset = 0;
     } else if (AllowPointerCoercion && IS_NUMERIC_COERCIBLE(FromValue)) {
         /* assign integer to native pointer */
         ToValue->Val->Pointer =
             (void*)(unsigned long)ExpressionCoerceUnsignedInteger(FromValue);
+
+		Left->Ref = 0;
+		Left->RefOffset = 0;
     } else if (AllowPointerCoercion && FromValue->Typ->Base == TypePointer) {
         /* assign a pointer to a pointer to a different type */
         ToValue->Val->Pointer = FromValue->Val->Pointer;
+
+		Left->Ref = Right->Ref;
+		Left->RefOffset = Right->RefOffset;
     } else
         AssignFail(Parser, "%t from %t", ToValue->Typ, FromValue->Typ, 0, 0,
             FuncName, ParamNo);
@@ -516,6 +549,19 @@ void ExpressionAssign(struct ParseState *Parser, struct Value *DestValue,
             !IS_NUMERIC_COERCIBLE_PLUS_POINTERS(SourceValue, AllowPointerCoercion))
         AssignFail(Parser, "%t from %t", DestValue->Typ, SourceValue->Typ, 0, 0,
             FuncName, ParamNo);
+
+	/* wk_debug */
+	struct Value *Left = DestValue;
+	if (Left->LValueFrom) {
+		Left = Left->LValueFrom;
+	}
+	printf("DestValue Address: %p\n", Left);
+	printf("DestValue->Name: %s\n", Left->Name);
+	printf("DestValue->Ref: %p\n", Left->Ref);
+	printf("DestValue->RefOffset: %d\n", Left->RefOffset);
+	if (Left->Ref) {
+		printf("Referrence Name: %s\n", Left->Ref->Name);
+	}
 
     switch (DestValue->Typ->Base) {
     case TypeInt:
@@ -881,6 +927,7 @@ void ExpressionInfixOperator(struct ParseState *Parser,
     long ResultInt = 0;
     struct Value *StackValue;
     void *Pointer;
+	int Offset = 0;
 
 #ifdef DEBUG_EXPRESSIONS
     printf("ExpressionInfixOperator()\n");
@@ -910,11 +957,16 @@ void ExpressionInfixOperator(struct ParseState *Parser,
             BottomValue->IsLValue, BottomValue->LValueFrom);
             break;
         case TypePointer: 
+			/* wk_modify: for multi-dim unsized array */
+			Offset = BottomValue->Typ->FromType->Sizeof * ArrayIndex;
+
 			Result = VariableAllocValueFromExistingData(Parser,
 						BottomValue->Typ->FromType,
-						(union AnyValue*)((char*)BottomValue->Val->Pointer +
-		/* wk_modify: for multi-dim array */ BottomValue->Typ->FromType->Sizeof * ArrayIndex),
+						(union AnyValue*)((char*)BottomValue->Val->Pointer + Offset),
 						BottomValue->IsLValue, BottomValue->LValueFrom);
+
+			Result->Ref = BottomValue->Ref ? BottomValue->Ref : BottomValue;
+			Result->RefOffset = BottomValue->RefOffset + Offset;
             break;
         default:
             ProgramFail(Parser, "this %t is not an array", BottomValue->Typ);
