@@ -331,11 +331,14 @@ long ExpressionAssignInt(struct ParseState *Parser, struct Value *DestValue,
     else
         Result = FromInt;
 
+	// wk_debug
+	/*
 	if (DestValue->Ref) {
 		if (0 == strcmp(DestValue->Ref->Name, "target")) {
 			printf("**semantic tracing**\n  AssignInt: Assign %s[%d] with value %d\n", DestValue->Ref->Name, DestValue->RefOffset, FromInt);
 		}
 	}
+	*/
 
     switch (DestValue->Typ->Base) {
     case TypeInt:
@@ -664,12 +667,15 @@ void ExpressionAssign(struct ParseState *Parser, struct Value *DestValue,
         break;
     }
 
+	// wk_debug
+	/*
 	if (SourceValue->Ref) {
 		if (0 == strcmp(SourceValue->Ref->Name, "target")) {
 			printf("**semantic tracing**\n  ReadInt: Read out %s[%d]=%d\n",
 					SourceValue->Ref->Name, SourceValue->RefOffset, ExpressionCoerceInteger(SourceValue));
 		}
 	}
+	*/
 }
 
 /* evaluate the first half of a ternary operator x ? y : z */
@@ -1087,12 +1093,15 @@ void ExpressionInfixOperator(struct ParseState *Parser,
 			case TokenArithmeticAndAssign:
 			case TokenArithmeticOrAssign:
 			case TokenArithmeticExorAssign:
+				// wk_debug
+				/*
 				if (TopValue->Ref) {
 					if (0 == strcmp(TopValue->Ref->Name, "target")) {
 						printf("**semantic tracing**\n  ReadInt: Read out %s[%d]=%d\n",
 								TopValue->Ref->Name, TopValue->RefOffset, TopInt);
 					}
 				}
+				*/
 				break;
 			default:
 				break;
@@ -1204,6 +1213,65 @@ void ExpressionInfixOperator(struct ParseState *Parser,
             ProgramFail(Parser, "invalid operation");
             break;
         }
+
+		// wk_debug
+		struct Value *LHS = BottomValue;
+		struct Value *RHS = TopValue;
+
+		if (LHS->Ref) { /* array[n] = xxx; */
+			if (RHS->Ref) { /* array[n] = other_array[m]; */
+				printf("**semantic tracing**\n assign-direct: %s[%d]=%s[%d]\n",
+						LHS->Ref->Name, LHS->RefOffset, RHS->Ref->Name, RHS->RefOffset);
+			} else { /* array[n] = integer_variable; */
+				if (RHS->LValueFrom) {
+					RHS = RHS->LValueFrom;
+				}
+
+				if (RHS->RefBridge) {
+					union AnyValue *v = (union AnyValue*)(&RHS->Ref->Val->ArrayMem[0] + RHS->Ref->Typ->FromType->Sizeof * RHS->RefOffset);
+
+					printf("value = %d\n", v->Integer);
+					if (ResultInt == v->Integer) {
+						printf("**semantic tracing**\n assign-through: %s[%d]=%s[%d]\n",
+								LHS->Ref->Name, LHS->RefOffset, RHS->Ref->Name, RHS->RefOffset);
+					} else {
+						printf("**semantic tracing**\n assign-broken: %s[%d]=%d\n",
+								LHS->Ref->Name, LHS->RefOffset, ResultInt);
+						RHS->RefBridge = 0;
+						RHS->Ref = NULL;
+						RHS->RefOffset = 0;
+					}
+				} else {
+					printf("**semantic tracing**\n assign: %s[%d]=%d(%s)\n",
+							LHS->Ref->Name, LHS->RefOffset, ResultInt, RHS->Name);
+				}
+			}
+		} else {
+			if (LHS->LValueFrom) {
+				LHS = LHS->LValueFrom;
+			}
+
+			if (RHS->Ref) {
+				/* create a bridge to array */
+				LHS->RefBridge = 1;
+				LHS->Ref = RHS->Ref;
+				LHS->RefOffset = RHS->RefOffset;
+			} else {
+				if (RHS->LValueFrom) {
+					RHS = RHS->LValueFrom;
+				}
+
+				/* create a bridge through another bridge */
+				if (RHS->RefBridge) {
+					LHS->RefBridge = 1;
+					LHS->Ref = RHS->Ref;
+					LHS->RefOffset = RHS->RefOffset;
+				} else {
+					LHS->RefBridge = 0; /* reset bridge connection */
+				}
+			}
+		}
+
         ExpressionPushInt(Parser, StackTop, ResultInt);
     } else if (BottomValue->Typ->Base == TypePointer &&
             IS_NUMERIC_COERCIBLE(TopValue)) {
