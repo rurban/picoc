@@ -1,5 +1,7 @@
 CC=gcc
-CFLAGS=-Wall -pedantic -g -DUNIX_HOST -DVER=\"`svnversion -n`\"
+GIT_VER := $(shell git show-ref --abbrev=8 --head --hash head)
+GIT_TAG := $(shell git describe --abbrev=6 --tags --always)
+CFLAGS=-Wall -pedantic -g -DUNIX_HOST -DVER=\"${GIT_VER}\" -DTAG=\"${GIT_TAG}\"
 LIBS=-lm -lreadline
 
 TARGET	= picoc
