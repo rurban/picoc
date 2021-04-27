@@ -1220,8 +1220,10 @@ void ExpressionInfixOperator(struct ParseState *Parser,
 
 		if (LHS->Ref) { /* array[n] = xxx; */
 			if (RHS->Ref) { /* array[n] = other_array[m]; */
-				printf("**semantic tracing**\n assign-direct: %s[%d]=%s[%d]\n",
+#ifdef DEBUG_EXPRESSIONS
+			    fprintf(stderr,"**semantic tracing**\n assign-direct: %s[%d]=%s[%d]\n",
 						LHS->Ref->Name, LHS->RefOffset, RHS->Ref->Name, RHS->RefOffset);
+#endif
 			} else { /* array[n] = integer_variable; */
 				if (RHS->LValueFrom) {
 					RHS = RHS->LValueFrom;
@@ -1232,18 +1234,24 @@ void ExpressionInfixOperator(struct ParseState *Parser,
 
 					printf("value = %d\n", v->Integer);
 					if (ResultInt == v->Integer) {
-						printf("**semantic tracing**\n assign-through: %s[%d]=%s[%d]\n",
+#ifdef DEBUG_EXPRESSIONS
+						fprintf(stderr,"**semantic tracing**\n assign-through: %s[%d]=%s[%d]\n",
 								LHS->Ref->Name, LHS->RefOffset, RHS->Ref->Name, RHS->RefOffset);
+#endif
 					} else {
-						printf("**semantic tracing**\n assign-broken: %s[%d]=%d\n",
+#ifdef DEBUG_EXPRESSIONS
+						fprintf(stderr,"**semantic tracing**\n assign-broken: %s[%d]=%d\n",
 								LHS->Ref->Name, LHS->RefOffset, ResultInt);
+#endif
 						RHS->RefBridge = 0;
 						RHS->Ref = NULL;
 						RHS->RefOffset = 0;
 					}
 				} else {
-					printf("**semantic tracing**\n assign: %s[%d]=%d(%s)\n",
+#ifdef DEBUG_EXPRESSIONS
+					fprintf(stderr,"**semantic tracing**\n assign: %s[%d]=%d(%s)\n",
 							LHS->Ref->Name, LHS->RefOffset, ResultInt, RHS->Name);
+#endif
 				}
 			}
 		} else {
